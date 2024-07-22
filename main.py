@@ -1,8 +1,8 @@
 from tkinter import *
 from tkinter import messagebox
-from random import choice, randint,shuffle
-import os
+from random import choice, randint, shuffle
 import pyperclip
+import json
 
 FONT = ("Courier", 12, "normal")
 
@@ -32,38 +32,49 @@ def generate_password():
 
 def save_password():
     """Takes the user input and first validates it to ensure no fields are left blank, if this condition
-    is satisfied the user is asked to confirm the details they have entered with a pop-up message confirmation
-    to which they can select 'ok' or 'cancel'. Select 'ok' = details are saved in a newly created 'Saved_Logins'
-    .txt file if one does not exist, otherwise the details are appended to a new line within the file. The website
-    and password fields are then reset to blanks"""
+    is satisfied the details are saved in a newly created .json file. If one does not exist a new file is created.
+    The website and password fields are then reset to blank"""
 
     website = website_entry.get()
     email_username = email_username_entry.get()
     password = password_entry.get()
-    new_login = f"{website} | {email_username} | {password}"
+    new_login = {
+        website: {
+            "email":email_username,
+            "password": password,
+        }
+    }
 
     if len(email_username) < 1 or len(password) < 1 or len(website) < 1:
         messagebox.showinfo("Oops", "Please dont leave any fields empty!")
     else:
-        proceed = messagebox.askokcancel(
-            title=website, message=f"Email:{email_username} \nPassword:{password} \nProceed?"
-        )
-        if proceed:
-            if not os.path.exists("Saved_Logins"):
-                with open("Saved_Logins", "a+") as f:
-                    f.write(new_login + "\n")
-            else:
-                with open("Saved_Logins", "a+") as f:
-                    f.write(new_login + "\n")
+        try:
+            with open("Saved_Logins.json", "r") as data_file:   # read data file
+                data = json.load(data_file)
+        except FileNotFoundError:
+            with open("Saved_Logins.json", "w") as data_file:   # create file if not found
+                json.dump(new_login, data_file, indent=4)
 
+        except json.decoder.JSONDecodeError:                    # for when file exists but blank
+            with open("Saved_Logins.json", 'w') as data_file:
+                json.dump(new_login, data_file, indent=4)
+        else:
+            data.update(new_login)
+
+            with open("Saved_Logins.json", "w") as data_file:   # write new login to file
+                json.dump(data, data_file, indent=4)
+
+        finally:
             website_entry.delete(0,END)
             password_entry.delete(0,END)
             website_entry.focus()
 
+# main window config
 window = Tk()
 window.title("Password Manager")
 window.config(padx=50, pady=50, bg="white")
 
+# canvas config
 canvas = Canvas(height=200,width=200, bg="white", highlightthickness=0 )
 mypass_logo = PhotoImage(file="logo.png")
 canvas.create_image(100,100, image=mypass_logo)
@@ -72,10 +83,8 @@ canvas.grid(column=1,row=0)
 # labels
 website_label = Label(text="Website:",  bg="white")
 website_label.grid(column=0,row=1)
-
 email_username_label = Label(text="Email/Username:",  bg="white")
 email_username_label.grid(column=0,row=2)
-
 password_label = Label(text="Password:", bg="white")
 password_label.grid(column=0,row=3)
 
@@ -83,11 +92,9 @@ password_label.grid(column=0,row=3)
 website_entry = Entry(width=40)
 website_entry.grid(column=1, row=1, columnspan=2)
 website_entry.focus()
-
 email_username_entry = Entry(width=40)
 email_username_entry.grid(column=1, row=2, columnspan=2)
 email_username_entry.insert(0, "email@address.com")
-
 password_entry = Entry(width=21)
 password_entry.grid(column=1, row=3)
 
